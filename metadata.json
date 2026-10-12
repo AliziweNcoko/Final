@@ -1,0 +1,6 @@
+{
+  "name": "TokPulse - TikTok Sentiment & Emotion Intelligence",
+  "description": "AI-powered TikTok sentiment analysis dashboard featuring VADER & Hugging Face emotion classification, video content theme extraction, interactive pie charts, real-time emotion alerts, and tag clouds.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
