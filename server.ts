@@ -538,6 +538,16 @@ Return only JSON with no markdown formatting.`;
   });
 });
 
+// Healthcheck endpoint for Vercel / Cloud monitoring
+app.get('/api/health', (_req: Request, res: Response) => {
+  res.json({
+    status: 'ok',
+    service: 'TokPulse TikTok Sentiment & Emotion Intelligence',
+    geminiConfigured: Boolean(process.env.GEMINI_API_KEY),
+    timestamp: new Date().toISOString(),
+  });
+});
+
 // Serve public video files statically
 app.use('/videos', express.static(path.resolve(__dirname, 'public/videos')));
 
@@ -568,4 +578,9 @@ async function startServer() {
   });
 }
 
-startServer();
+// Only run standalone HTTP listener when not in Vercel serverless environment
+if (!process.env.VERCEL) {
+  startServer();
+}
+
+export default app;

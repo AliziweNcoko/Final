@@ -883,6 +883,10 @@ export default function App() {
           video={videoAnalysis}
           stats={stats}
           onClose={() => setIsReportOpen(false)}
+          onReturnHome={() => {
+            setIsReportOpen(false);
+            setCurrentView('foryou');
+          }}
         />
       )}
     </div>
