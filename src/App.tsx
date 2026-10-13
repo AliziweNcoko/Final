@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Bell,
@@ -16,6 +16,12 @@ import {
   RefreshCw,
   ExternalLink,
   ChevronRight,
+  Upload,
+  Link as LinkIcon,
+  Check,
+  CheckCircle,
+  Home,
+  X,
 } from 'lucide-react';
 import {
   CommentItem,
@@ -30,6 +36,7 @@ import { TIKTOK_DATASETS, processRawComments } from './data/mockTikTokDatasets';
 import { analyzeVader } from './utils/vaderSentiment';
 import { analyzeHuggingFaceEmotion } from './utils/huggingFaceEmotion';
 import { NavigationRail, NavView } from './components/NavigationRail';
+import { TikTokFeedView } from './components/TikTokFeedView';
 import { PieChartCard } from './components/PieChartCard';
 import { VideoInsightCard } from './components/VideoInsightCard';
 import { EmotionAlertsCenter } from './components/EmotionAlertsCenter';
@@ -40,12 +47,23 @@ import { LiveStreamSimulator } from './components/LiveStreamSimulator';
 
 export default function App() {
   const [currentPresetKey, setCurrentPresetKey] = useState<string>('wand_review');
-  const [currentView, setCurrentView] = useState<NavView>('dashboard');
+  const [currentView, setCurrentView] = useState<NavView>('foryou');
   const [selectedFilter, setSelectedFilter] = useState<string | null>(null);
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [isLiveStreaming, setIsLiveStreaming] = useState(false);
   const [isAnalyzingVideo, setIsAnalyzingVideo] = useState(false);
+  const [headerLink, setHeaderLink] = useState('');
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const triggerToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => {
+      setToastMessage((prev) => (prev === msg ? null : prev));
+    }, 4500);
+  };
 
   // Current active dataset
   const activeDataset = TIKTOK_DATASETS[currentPresetKey] || TIKTOK_DATASETS['wand_review'];
@@ -120,100 +138,108 @@ export default function App() {
   const handleAnalyzeLink = async (link: string) => {
     setIsAnalyzingVideo(true);
 
+    const cleanInput = link.trim();
+    const urlMatch =
+      cleanInput.match(/https?:\/\/[^\s]+/i) ||
+      cleanInput.match(/(?:www\.|vm\.|vt\.|tiktok\.com)[^\s]+/i);
+    const targetLink = urlMatch ? urlMatch[0] : cleanInput;
+
     try {
       const response = await fetch('/api/analyze-link', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ link }),
+        body: JSON.stringify({ link: targetLink }),
       });
 
       const resData = await response.json();
-      if (resData.success && resData.data) {
-        const item = resData.data;
-
-        // Process generated/extracted sample comments with VADER & Hugging Face
-        const newProcessedComments: CommentItem[] = (item.comments || []).map((rawCmt: any, idx: number) => {
-          const vader = analyzeVader(rawCmt.text);
-          const huggingFace = analyzeHuggingFaceEmotion(rawCmt.text);
-          return {
-            id: `link_cmt_${Date.now()}_${idx}`,
-            author: rawCmt.author || 'TikTok Viewer',
-            username: rawCmt.username || `@viewer_${idx}`,
-            avatar: `https://images.unsplash.com/photo-${1507003211169 + (idx % 15)}?w=100&auto=format&fit=crop&q=80`,
-            text: rawCmt.text,
-            likes: rawCmt.likes || Math.floor(Math.random() * 2000) + 10,
-            timeAgo: rawCmt.timeAgo || '1 hour ago',
-            timestamp: Date.now() - idx * 1000 * 60 * 15,
-            vader,
-            huggingFace,
-            themes: item.keyThemes?.slice(0, 2).map((t: any) => t.name) || ['Viral Content'],
-            isAlertTrigger: huggingFace.primaryEmotion === 'outrage' || huggingFace.primaryEmotion === 'sarcasm',
-          };
-        });
-
-        // Set new video analysis with guaranteed unique IDs on keyThemes
-        const processedThemes = (item.keyThemes || []).map((t: any, idx: number) => ({
-          ...t,
-          id: t.id || `th_link_${idx}_${Date.now()}`,
-        }));
-
-        setVideoAnalysis({
-          id: `link_${Date.now()}`,
-          title: item.title,
-          creator: item.creator,
-          creatorHandle: item.creatorHandle,
-          creatorAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-          duration: '00:58',
-          views: '1.4M',
-          likes: '240.5K',
-          commentsCount: newProcessedComments.length || 18,
-          shares: '31.2K',
-          videoUrl: undefined,
-          tiktokUrl: item.tiktokUrl || link,
-          videoId: item.videoId,
-          thumbnailUrl: item.thumbnailUrl,
-          summary: item.summary,
-          hookSummary: item.hookSummary,
-          creatorIntent: item.creatorIntent,
-          keyThemes: processedThemes,
-          riskIndex: item.riskIndex,
-          viralityScore: item.viralityScore,
-          audienceAlignmentScore: item.audienceAlignmentScore,
-        });
-
-        if (newProcessedComments.length > 0) {
-          setComments(newProcessedComments);
-        }
-
-        // Tailored alert for the analyzed link
-        const newAlerts: EmotionAlert[] = [
-          {
-            id: `link_alt_${Date.now()}_1`,
-            category: item.riskIndex > 40 ? 'outrage' : 'hype',
-            severity: item.riskIndex > 50 ? 'critical' : 'high',
-            title: item.riskIndex > 40 ? `Controversy Spike: ${item.title.slice(0, 35)}...` : `Viral Engagement Surge: ${item.creatorHandle}`,
-            description: `Audience reaction analysis extracted ${item.keyThemes?.[0]?.name || 'Core Theme'} as primary narrative driver.`,
-            metric: `${item.viralityScore}% Virality Index`,
-            threshold: 'Velocity > 70%',
-            timeAgo: 'Just now',
-            timestamp: Date.now(),
-            prevStatus: 'Pending',
-            currentStatus: 'Live Analyzed',
-            sampleComment: newProcessedComments[0]?.text || 'Analyzed from TikTok Link',
-            resolved: false,
-          },
-        ];
-        setAlerts(newAlerts);
-        setSelectedFilter(null);
-        setSelectedTag(null);
+      if (!response.ok || !resData.success || !resData.data) {
+        throw new Error(resData?.error || 'Analysis service returned error');
       }
+
+      const item = resData.data;
+
+      // Process generated/extracted sample comments with VADER & Hugging Face
+      const newProcessedComments: CommentItem[] = (item.comments || []).map((rawCmt: any, idx: number) => {
+        const vader = analyzeVader(rawCmt.text);
+        const huggingFace = analyzeHuggingFaceEmotion(rawCmt.text);
+        return {
+          id: `link_cmt_${Date.now()}_${idx}`,
+          author: rawCmt.author || 'TikTok Viewer',
+          username: rawCmt.username || `@viewer_${idx}`,
+          avatar: `https://images.unsplash.com/photo-${1507003211169 + (idx % 15)}?w=100&auto=format&fit=crop&q=80`,
+          text: rawCmt.text,
+          likes: rawCmt.likes || Math.floor(Math.random() * 2000) + 10,
+          timeAgo: rawCmt.timeAgo || '1 hour ago',
+          timestamp: Date.now() - idx * 1000 * 60 * 15,
+          vader,
+          huggingFace,
+          themes: item.keyThemes?.slice(0, 2).map((t: any) => t.name) || ['Viral Content'],
+          isAlertTrigger: huggingFace.primaryEmotion === 'outrage' || huggingFace.primaryEmotion === 'sarcasm',
+        };
+      });
+
+      // Set new video analysis with guaranteed unique IDs on keyThemes
+      const processedThemes = (item.keyThemes || []).map((t: any, idx: number) => ({
+        ...t,
+        id: t.id || `th_link_${idx}_${Date.now()}`,
+      }));
+
+      setVideoAnalysis({
+        id: `link_${Date.now()}`,
+        title: item.title,
+        creator: item.creator,
+        creatorHandle: item.creatorHandle,
+        creatorAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+        duration: '00:58',
+        views: '1.4M',
+        likes: '240.5K',
+        commentsCount: newProcessedComments.length || 18,
+        shares: '31.2K',
+        videoUrl: undefined,
+        tiktokUrl: item.tiktokUrl || targetLink,
+        videoId: item.videoId,
+        thumbnailUrl: item.thumbnailUrl,
+        summary: item.summary,
+        hookSummary: item.hookSummary,
+        creatorIntent: item.creatorIntent,
+        keyThemes: processedThemes,
+        riskIndex: item.riskIndex,
+        viralityScore: item.viralityScore,
+        audienceAlignmentScore: item.audienceAlignmentScore,
+      });
+
+      if (newProcessedComments.length > 0) {
+        setComments(newProcessedComments);
+      }
+
+      // Tailored alert for the analyzed link
+      const newAlerts: EmotionAlert[] = [
+        {
+          id: `link_alt_${Date.now()}_1`,
+          category: item.riskIndex > 40 ? 'outrage' : 'hype',
+          severity: item.riskIndex > 50 ? 'critical' : 'high',
+          title: item.riskIndex > 40 ? `Controversy Spike: ${item.title.slice(0, 35)}...` : `Viral Engagement Surge: ${item.creatorHandle}`,
+          description: `Audience reaction analysis extracted ${item.keyThemes?.[0]?.name || 'Core Theme'} as primary narrative driver.`,
+          metric: `${item.viralityScore}% Virality Index`,
+          threshold: 'Velocity > 70%',
+          timeAgo: 'Just now',
+          timestamp: Date.now(),
+          prevStatus: 'Pending',
+          currentStatus: 'Live Analyzed',
+          sampleComment: newProcessedComments[0]?.text || 'Analyzed from TikTok Link',
+          resolved: false,
+        },
+      ];
+      setAlerts(newAlerts);
+      setSelectedFilter(null);
+      setSelectedTag(null);
+      triggerToast(`Loaded TikTok video by ${item.creator || 'TikTok Creator'} (${item.creatorHandle || '@tiktok_creator'})!`);
     } catch (err) {
-      console.warn('Network link analysis encountered issue, activating client-side analysis fallback:', err);
+      console.warn('Network link analysis notice, activating client-side analysis fallback:', err);
       // Client-side fallback: ensure user ALWAYS gets video loaded and comments analyzed
-      const urlClean = link.trim();
-      const matchHandle = urlClean.match(/@([a-zA-Z0-9_.-]+)/);
-      const matchVid = urlClean.match(/\/video\/(\d+)/) || urlClean.match(/(\d{15,22})/);
-      const videoId = matchVid ? matchVid[1] : '7328910481920194858';
+      const matchHandle = targetLink.match(/@([a-zA-Z0-9_.-]+)/);
+      const matchVid = targetLink.match(/\/video\/(\d+)/) || targetLink.match(/(\d{15,22})/);
+      const videoId = matchVid ? matchVid[1] : '6718335390845095173';
       const creatorHandle = matchHandle ? `@${matchHandle[1]}` : '@tiktok_creator';
       const creatorName = matchHandle
         ? matchHandle[1].split(/[._-]/).map((s) => s.charAt(0).toUpperCase() + s.slice(1)).join(' ')
@@ -257,15 +283,15 @@ export default function App() {
         commentsCount: clientProcessed.length,
         shares: '42.1K',
         videoUrl: undefined,
-        tiktokUrl: urlClean,
+        tiktokUrl: targetLink,
         videoId,
         thumbnailUrl: 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=800&auto=format&fit=crop&q=80',
         summary: `Analyzed TikTok video from ${creatorName} (${creatorHandle}). The content drives high engagement through narrative pacing and audience debate.`,
         hookSummary: 'Rapid-cut opening hook designed to grab attention within the first 2 seconds.',
         creatorIntent: 'Maximize comment section discussions and viewer shares.',
         keyThemes: [
-          { id: 'th1', name: 'Delivery & Energy', hashtag: '#TikTokViral', description: 'Audience reception to creator pacing', sentiment: 'positive', sentimentScore: 0.8, dominantEmotion: 'hype' },
-          { id: 'th2', name: 'Claim Authenticity', hashtag: '#RealOrFake', description: 'Comment debate over reality vs entertainment', sentiment: 'negative', sentimentScore: -0.4, dominantEmotion: 'sarcasm' }
+          { id: 'th1', name: 'Delivery & Energy', hashtag: '#TikTokViral', description: 'Audience reception to creator pacing', frequency: 45, sentiment: 'positive', sentimentScore: 0.8, dominantEmotion: 'hype' },
+          { id: 'th2', name: 'Claim Authenticity', hashtag: '#RealOrFake', description: 'Comment debate over reality vs entertainment', frequency: 28, sentiment: 'negative', sentimentScore: -0.4, dominantEmotion: 'sarcasm' }
         ],
         riskIndex: 35,
         viralityScore: 89,
@@ -273,9 +299,18 @@ export default function App() {
       });
 
       setComments(clientProcessed);
+      triggerToast(`Loaded TikTok video by ${creatorName} (${creatorHandle})!`);
     } finally {
       setIsAnalyzingVideo(false);
     }
+  };
+
+  // Header quick link submission
+  const handleHeaderLinkSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!headerLink.trim()) return;
+    handleAnalyzeLink(headerLink.trim());
+    setHeaderLink('');
   };
 
   // Add custom or streamed comment
@@ -481,38 +516,119 @@ export default function App() {
   }, [comments, videoAnalysis]);
 
   return (
-    <div className="flex h-screen w-screen bg-[#090d16] text-slate-100 overflow-hidden font-sans">
-      {/* 1. Left Navigation Rail inspired by reference screenshot */}
+    <div className="flex h-screen w-screen bg-[#000000] text-neutral-100 overflow-hidden font-sans">
+      {/* 1. Left TikTok Navigation Sidebar */}
       <NavigationRail
         currentView={currentView}
         onSelectView={setCurrentView}
         activeAlertsCount={stats.activeAlertsCount}
         onOpenReport={() => setIsReportOpen(true)}
+        onSelectCreator={(url) => handleAnalyzeLink(url)}
+        onSelectTag={(tag) => setSelectedFilter(tag)}
       />
 
       {/* 2. Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
-        {/* Top Header Bar */}
-        <header className="sticky top-0 z-20 bg-[#090d16]/90 backdrop-blur-md border-b border-slate-800/80 px-6 py-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <h1 className="text-lg font-extrabold text-white tracking-tight flex items-center gap-2">
-                <span>TokPulse</span>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-gradient-to-r from-[#fe2c55]/20 to-[#25f4ee]/20 text-[#25f4ee] border border-[#25f4ee]/30">
-                  TikTok Sentiment AI
-                </span>
-              </h1>
+      <div className="flex-1 flex flex-col min-w-0 overflow-y-auto bg-[#0a0a0a]">
+        {/* Top TikTok Header Bar */}
+        <header className="sticky top-0 z-20 bg-[#0a0a0a]/95 backdrop-blur-md border-b border-[#1f1f1f] px-4 md:px-6 py-2.5 flex flex-col md:flex-row items-center justify-between gap-3">
+          {/* Left Brand & View Mode Switcher */}
+          <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-start">
+            <div
+              onClick={() => setCurrentView('foryou')}
+              className="flex items-center gap-2 cursor-pointer group"
+              title="TokPulse Home"
+            >
+              <div className="relative w-8 h-8 flex items-center justify-center flex-shrink-0">
+                <div className="absolute inset-0 translate-x-[-1.5px] translate-y-[-1px] text-[#25f4ee] font-black text-xl flex items-center justify-center opacity-85">
+                  ♪
+                </div>
+                <div className="absolute inset-0 translate-x-[1.5px] translate-y-[1px] text-[#fe2c55] font-black text-xl flex items-center justify-center opacity-85">
+                  ♪
+                </div>
+                <div className="relative text-white font-black text-xl flex items-center justify-center">
+                  ♪
+                </div>
+              </div>
+              <span className="text-base font-black tracking-tight text-white group-hover:text-neutral-200">
+                TokPulse
+              </span>
             </div>
-            <span className="text-slate-600 hidden md:inline">|</span>
-            <div className="hidden md:flex items-center gap-2 text-xs text-slate-400">
-              <span>VADER Lexicon</span>
-              <span className="text-slate-600">+</span>
-              <span>Hugging Face GoEmotions</span>
+
+            {/* Quick Mode Switcher */}
+            <div className="inline-flex p-1 bg-[#161616] border border-[#262626] rounded-xl text-xs">
+              <button
+                onClick={() => setCurrentView('foryou')}
+                className={`px-3 py-1 rounded-lg font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                  currentView === 'foryou'
+                    ? 'bg-[#fe2c55] text-white shadow-sm'
+                    : 'text-neutral-400 hover:text-white'
+                }`}
+              >
+                <Home className="w-3.5 h-3.5" />
+                <span>For You</span>
+              </button>
+              <button
+                onClick={() => setCurrentView('dashboard')}
+                className={`px-3 py-1 rounded-lg font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                  currentView === 'dashboard'
+                    ? 'bg-[#222] text-[#25f4ee] border border-[#25f4ee]/30 shadow-sm'
+                    : 'text-neutral-400 hover:text-white'
+                }`}
+              >
+                <PieChartIcon className="w-3.5 h-3.5" />
+                <span>Analytics Suite</span>
+              </button>
             </div>
           </div>
 
-          {/* Right Header Tools: Live Stream, Report Button, Active Alert Badge */}
-          <div className="flex items-center gap-3">
+          {/* Central TikTok Link Input & Search Bar */}
+          <form
+            onSubmit={handleHeaderLinkSubmit}
+            className="w-full md:max-w-md lg:max-w-lg flex items-center relative"
+          >
+            <div className="relative w-full flex items-center">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-neutral-500">
+                <Search className="w-4 h-4 text-[#25f4ee]" />
+              </div>
+              <input
+                type="text"
+                placeholder="Search or paste TikTok link (vm.tiktok.com, /video/..., @creator)..."
+                value={headerLink}
+                onChange={(e) => setHeaderLink(e.target.value)}
+                className="w-full pl-9 pr-24 py-2 rounded-xl bg-[#161616] border border-[#292929] focus:border-[#fe2c55] text-xs text-white placeholder-neutral-500 focus:outline-none transition-all font-mono"
+              />
+              <button
+                type="submit"
+                disabled={isAnalyzingVideo || !headerLink.trim()}
+                className="absolute inset-y-1 right-1 px-3 rounded-lg bg-gradient-to-r from-[#fe2c55] to-[#ff0050] hover:opacity-90 disabled:opacity-40 text-white font-bold text-[11px] flex items-center gap-1 transition-all cursor-pointer"
+              >
+                {isAnalyzingVideo ? (
+                  <RefreshCw className="w-3 h-3 animate-spin" />
+                ) : (
+                  <span>Analyze</span>
+                )}
+              </button>
+            </div>
+          </form>
+
+          {/* Right Header Tools */}
+          <div className="flex items-center gap-2">
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={(e) => e.target.files?.[0] && handleUploadVideo(e.target.files[0])}
+              accept="video/*"
+              className="hidden"
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="hidden lg:flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#161616] hover:bg-[#222] border border-[#262626] text-neutral-300 hover:text-white font-bold text-xs transition-colors cursor-pointer"
+              title="Upload MP4 from local disk"
+            >
+              <Upload className="w-3.5 h-3.5 text-neutral-400" />
+              <span>+ Upload</span>
+            </button>
+
             <LiveStreamSimulator
               isStreaming={isLiveStreaming}
               onToggleStream={() => setIsLiveStreaming(!isLiveStreaming)}
@@ -521,16 +637,54 @@ export default function App() {
 
             <button
               onClick={() => setIsReportOpen(true)}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:opacity-90 text-white font-semibold text-xs shadow-lg shadow-cyan-950/40 transition-all cursor-pointer"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-[#fe2c55]/20 to-[#25f4ee]/20 hover:from-[#fe2c55]/30 hover:to-[#25f4ee]/30 text-white font-bold text-xs border border-[#333] transition-all cursor-pointer"
             >
-              <FileText className="w-3.5 h-3.5" />
-              <span>Insights Report</span>
+              <FileText className="w-3.5 h-3.5 text-[#25f4ee]" />
+              <span className="hidden sm:inline">Report</span>
             </button>
           </div>
         </header>
 
         {/* View Content Body */}
-        <main className="p-6 max-w-7xl mx-auto w-full space-y-6">
+        <main className="p-4 md:p-6 max-w-7xl mx-auto w-full space-y-6">
+          {/* Toast Notification Alert */}
+          <AnimatePresence>
+            {toastMessage && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="p-3.5 rounded-xl bg-[#141414] border border-[#25f4ee]/40 text-white flex items-center justify-between shadow-2xl shadow-cyan-950/40 text-xs"
+              >
+                <div className="flex items-center gap-2.5">
+                  <span className="w-2 h-2 rounded-full bg-[#25f4ee] animate-pulse" />
+                  <span className="font-medium">{toastMessage}</span>
+                </div>
+                <button
+                  onClick={() => setToastMessage(null)}
+                  className="p-1 hover:bg-[#222] rounded-lg text-neutral-400 hover:text-white cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* TikTok For You Feed View (Signature TikTok Interface) */}
+          {currentView === 'foryou' && (
+            <TikTokFeedView
+              video={videoAnalysis}
+              comments={comments}
+              stats={stats}
+              alerts={alerts}
+              isAnalyzing={isAnalyzingVideo}
+              onAnalyzeLink={handleAnalyzeLink}
+              onAddComment={handleAddComment}
+              onSelectPreset={handleSelectPreset}
+              currentPresetKey={currentPresetKey}
+            />
+          )}
+
           {/* Main Dashboard View: Shows All Core Cards in sleek dark layout */}
           {currentView === 'dashboard' && (
             <div className="space-y-6">

@@ -321,31 +321,31 @@ export const VideoInsightCard: React.FC<Props> = ({
                 <span className="text-slate-500 font-medium">Test links:</span>
                 <button
                   type="button"
-                  onClick={() => handlePresetLinkClick('https://www.tiktok.com/@alixearle/video/7328910481920194858')}
+                  onClick={() => handlePresetLinkClick('https://www.tiktok.com/@scout2015/video/6718335390845095173')}
                   className="px-2 py-0.5 rounded bg-slate-800/80 hover:bg-slate-750 text-cyan-300 font-mono border border-slate-700 transition-all cursor-pointer"
                 >
-                  @alixearle (GRWM)
+                  @scout2015 (Viral Pets)
                 </button>
                 <button
                   type="button"
-                  onClick={() => handlePresetLinkClick('https://www.tiktok.com/@mrbeast/video/7310481920194858102')}
+                  onClick={() => handlePresetLinkClick('https://www.tiktok.com/@khaby.lame/video/7106594312292453678')}
                   className="px-2 py-0.5 rounded bg-slate-800/80 hover:bg-slate-750 text-cyan-300 font-mono border border-slate-700 transition-all cursor-pointer"
                 >
-                  @mrbeast (Challenge)
+                  @khaby.lame (Comedy Skit)
                 </button>
                 <button
                   type="button"
-                  onClick={() => handlePresetLinkClick('https://www.tiktok.com/@khaby.lame/video/7219481920194858192')}
+                  onClick={() => handlePresetLinkClick('https://www.tiktok.com/@zachking/video/7178345719391063342')}
                   className="px-2 py-0.5 rounded bg-slate-800/80 hover:bg-slate-750 text-cyan-300 font-mono border border-slate-700 transition-all cursor-pointer"
                 >
-                  @khaby.lame (Skit)
+                  @zachking (Illusion)
                 </button>
                 <button
                   type="button"
-                  onClick={() => handlePresetLinkClick('https://www.tiktok.com/@techlead/video/7301948192019485811')}
+                  onClick={() => handlePresetLinkClick('https://www.tiktok.com/@gordonramsayofficial/video/7204620603758365998')}
                   className="px-2 py-0.5 rounded bg-slate-800/80 hover:bg-slate-750 text-cyan-300 font-mono border border-slate-700 transition-all cursor-pointer"
                 >
-                  @techlead (Tech)
+                  @gordonramsay (Food Roast)
                 </button>
               </div>
             </form>

@@ -31,8 +31,8 @@ export const TIKTOK_DATASETS: Record<string, TikTokProjectData> = {
       likes: '418.2K',
       commentsCount: 3840,
       shares: '52.1K',
-      videoId: '7328910481920194858',
-      tiktokUrl: 'https://www.tiktok.com/@elena_glowtech/video/7328910481920194858',
+      videoId: '6718335390845095173',
+      tiktokUrl: 'https://www.tiktok.com/@scout2015/video/6718335390845095173',
       videoUrl: '/videos/wand_review.mp4',
       thumbnailUrl: 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=800&auto=format&fit=crop&q=80',
       summary:
@@ -310,8 +310,8 @@ export const TIKTOK_DATASETS: Record<string, TikTokProjectData> = {
       likes: '890.4K',
       commentsCount: 6200,
       shares: '142.0K',
-      videoId: '7219481920194858192',
-      tiktokUrl: 'https://www.tiktok.com/@devon_codes/video/7219481920194858192',
+      videoId: '7106594312292453678',
+      tiktokUrl: 'https://www.tiktok.com/@khaby.lame/video/7106594312292453678',
       videoUrl: '/videos/tech_skit.mp4',
       thumbnailUrl: 'https://images.unsplash.com/photo-1531403009284-440f080d1e12?w=800&auto=format&fit=crop&q=80',
       summary:
@@ -440,8 +440,8 @@ export const TIKTOK_DATASETS: Record<string, TikTokProjectData> = {
       likes: '310.5K',
       commentsCount: 5120,
       shares: '68.9K',
-      videoId: '7310481920194858102',
-      tiktokUrl: 'https://www.tiktok.com/@cheesy_feasts/video/7310481920194858102',
+      videoId: '7178345719391063342',
+      tiktokUrl: 'https://www.tiktok.com/@zachking/video/7178345719391063342',
       thumbnailUrl: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=800&auto=format&fit=crop&q=80',
       summary:
         'A towering food-challenge video where a quad-patty wagyu burger is submerged in beer batter, deep-fried whole, and doused in a boiling pot of fluorescent cheddar sauce.',

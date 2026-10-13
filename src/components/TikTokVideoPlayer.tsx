@@ -48,15 +48,18 @@ export const TikTokVideoPlayer: React.FC<Props> = ({
   const effectiveVideoId =
     video.videoId ||
     (video.tiktokUrl ? (video.tiktokUrl.match(/\/video\/(\d+)/) || video.tiktokUrl.match(/(\d{15,22})/))?.[1] : null) ||
-    '7328910481920194858';
+    '6718335390845095173';
 
   const fullTikTokUrl =
     video.tiktokUrl ||
     `https://www.tiktok.com/${video.creatorHandle}/video/${effectiveVideoId}`;
 
-  // Whenever video or tiktokUrl changes, ensure real video embed is active
+  // State to track if embed iframe loaded or blocked
+  const [iframeLoaded, setIframeLoaded] = useState(false);
+
+  // Whenever video or tiktokUrl changes, reset iframe state
   useEffect(() => {
-    setViewMode('embed');
+    setIframeLoaded(false);
   }, [video.id, video.tiktokUrl, video.videoId]);
 
   // Time ticker simulation if no HTML5 video element is loaded
@@ -149,26 +152,27 @@ export const TikTokVideoPlayer: React.FC<Props> = ({
       {/* Main Video Stage Container (Portrait 9:16) */}
       <div className="relative rounded-2xl overflow-hidden bg-black border border-slate-800 shadow-2xl aspect-[9/16] w-full max-h-[620px] select-none group">
         {viewMode === 'embed' ? (
-          /* Official TikTok Iframe Embed with Fallback & Direct Controls */
+          /* Official TikTok Player Embed (player/v1) */
           <div className="w-full h-full relative bg-slate-950 flex flex-col">
             <iframe
               key={effectiveVideoId}
-              src={`https://www.tiktok.com/embed/v2/${effectiveVideoId}?autoplay=1`}
+              src={`https://www.tiktok.com/player/v1/${effectiveVideoId}`}
               className="w-full h-full rounded-2xl border-0"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
               allowFullScreen
+              onLoad={() => setIframeLoaded(true)}
               title={`TikTok Video ${effectiveVideoId}`}
             />
             {/* Live Indicator Badge */}
             <div className="absolute top-2.5 right-2.5 pointer-events-none z-10">
               <span className="px-2 py-0.5 rounded-full bg-black/80 backdrop-blur-md text-[10px] font-mono text-cyan-300 border border-cyan-500/30 flex items-center gap-1 shadow-md">
                 <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
-                Live Embed
+                Live TikTok Stream
               </span>
             </div>
 
-            {/* Quick Helper Floating Footer if user has 3rd-party cookie blocking */}
-            <div className="absolute bottom-2 inset-x-2 p-2 rounded-xl bg-slate-950/85 backdrop-blur-md border border-slate-800 text-[11px] text-slate-300 flex items-center justify-between gap-2 shadow-lg z-10">
+            {/* Quick Controls & Player Mode Switcher */}
+            <div className="absolute bottom-2 inset-x-2 p-2 rounded-xl bg-slate-950/90 backdrop-blur-md border border-slate-800 text-[11px] text-slate-300 flex items-center justify-between gap-2 shadow-lg z-10">
               <span className="truncate text-slate-400">
                 Playing <strong className="text-white font-medium">{video.creatorHandle}</strong>
               </span>
@@ -177,8 +181,9 @@ export const TikTokVideoPlayer: React.FC<Props> = ({
                   type="button"
                   onClick={() => setViewMode('interactive')}
                   className="px-2 py-0.5 rounded-md bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 font-medium transition-all cursor-pointer"
+                  title="Switch to full Interactive Video Player"
                 >
-                  Interactive Player
+                  HD Player
                 </button>
                 <a
                   href={fullTikTokUrl}
